@@ -1,7 +1,7 @@
 
 # todo.nvim
 
-manage tasks, take notes - globally accessible buffer.
+simple buffer plugin
 
 
 ## Installation
