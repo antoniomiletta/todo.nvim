@@ -1,9 +1,11 @@
 local M = {}
 
-local win = nil
+local state = {
+	win = nil,
+}
 
 local default_opts = {
-	target_file = "~/notes/todo.md",
+	target_file = "~/todo.nvim/todo.md",
 	border = "single",
 	width = 0.8,
 	height = 0.8,
@@ -21,12 +23,10 @@ end
 local function calculate_position(position)
 	local x, y = 0.5, 0.5
 
-	-- Custom position
 	if type(position) == "table" then
 		x, y = position[1], position[2]
 	end
 
-	-- Position keywords
 	if position == "center" then
 		x, y = 0.5, 0.5
 	elseif position == "topleft" then
@@ -61,9 +61,42 @@ local function win_config(opts)
 	}
 end
 
+local function close_window()
+	if state.win ~= nil and vim.api.nvim_win_is_valid(state.win) then
+		vim.api.nvim_win_close(state.win, true)
+	end
+	state.win = nil
+end
+
+local function save_buffer(buf)
+	vim.api.nvim_buf_call(buf, function()
+		vim.cmd("write")
+	end)
+end
+
+local function setup_keymaps(buf, opts)
+	vim.api.nvim_buf_set_keymap(buf, "n", "q", "", {
+		noremap = true,
+		silent = true,
+		callback = function()
+			if vim.api.nvim_get_option_value("modified", { buf = buf }) then
+				if opts.auto_save then
+					save_buffer(buf)
+					close_window()
+					vim.notify("(todo.nvim) Changes saved automatically", vim.log.levels.INFO)
+				else
+					vim.notify("(todo.nvim) Save your changes, please", vim.log.levels.WARN)
+				end
+			else
+				close_window()
+			end
+		end,
+	})
+end
+
 local function open_floating_file(opts)
-	if win ~= nil and vim.api.nvim_win_is_valid(win) then
-		vim.api.nvim_set_current_win(win)
+	if state.win ~= nil and vim.api.nvim_win_is_valid(state.win) then
+		vim.api.nvim_set_current_win(state.win)
 		return
 	end
 
@@ -83,43 +116,16 @@ local function open_floating_file(opts)
 
 	vim.bo[buf].swapfile = false
 
-	win = vim.api.nvim_open_win(buf, true, win_config(opts))
-
-	vim.api.nvim_buf_set_keymap(buf, "n", "q", "", {
-		noremap = true,
-		silent = true,
-		callback = function()
-			if vim.api.nvim_get_option_value("modified", { buf = buf }) then
-				if opts.auto_save then
-					vim.api.nvim_buf_call(buf, function()
-						vim.cmd("write")
-					end)
-					vim.api.nvim_win_close(0, true)
-					vim.notify("(todo.nvim) Changes saved automatically", vim.log.levels.INFO)
-				else
-					vim.notify("(todo.nvim) Save yor changes, please", vim.log.levels.WARN)
-				end
-			else
-				vim.api.nvim_win_close(0, true)
-				win = nil
-			end
-		end,
-	})
+	state.win = vim.api.nvim_open_win(buf, true, win_config(opts))
+	setup_keymaps(buf, opts)
 end
 
-local function setup_user_commands(opts)
-	opts = opts or {}
-	default_opts = default_opts or {}
-
-	opts = vim.tbl_deep_extend("force", default_opts, opts)
+M.setup = function(opts)
+	opts = vim.tbl_deep_extend("force", default_opts, opts or {})
 
 	vim.api.nvim_create_user_command("Td", function()
 		open_floating_file(opts)
 	end, {})
-end
-
-M.setup = function(opts)
-	setup_user_commands(opts)
 end
 
 return M
