@@ -7,8 +7,8 @@ local state = {
 local default_opts = {
 	target_file = "~/todo.nvim/todo.md",
 	border = "single",
-	width = 0.8,
-	height = 0.8,
+	width = 0.5,
+	height = 0.5,
 	position = "center",
 	auto_save = true,
 }
@@ -43,7 +43,7 @@ local function calculate_position(position)
 end
 
 local function win_config(opts)
-	local width = math.min(math.floor(vim.o.columns * opts.width), 64)
+	local width = math.floor(vim.o.columns * opts.width)
 	local height = math.floor(vim.o.lines * opts.height)
 
 	local posx, posy = calculate_position(opts.position)
